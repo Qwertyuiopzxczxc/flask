@@ -1,13 +1,3 @@
-"""
-Flask + MySQL: авторизация
-Требования:
-1. Схема и таблица users (id, user_name, user_password)
-2. Класс Database (pymysql.connect, cursor, закрытие)
-3. Метод get_user(username) -> запись или None
-4. Проверка в route login: получить данные через Database, сверить пароль,
-   обработать ошибки, сделать редирект
-"""
-
 import os
 from flask import Flask, render_template, request, redirect, url_for, make_response
 
@@ -17,21 +7,16 @@ try:
 except ImportError:
     raise ImportError("Установите pymysql: pip install pymysql")
 
-
-# ==================== Конфигурация БД ====================
-# Измените под свои настройки MySQL
 DB_CONFIG = {
     "host": "localhost",
-    "user": "root",          # ваш пользователь MySQL
-    "password": "",          # ваш пароль MySQL
+    "user": "root",
+    "password": "admin",       
     "database": "flask_auth",
     "charset": "utf8mb4",
     "cursorclass": DictCursor,
     "autocommit": True,
 }
 
-
-# ==================== Класс Database ====================
 class Database:
     """Инкапсуляция работы с MySQL."""
 
@@ -39,6 +24,7 @@ class Database:
         self.config = config or DB_CONFIG
         self.connection = None
         self.cursor = None
+        self.last_error = None
 
     def connect(self):
         """Инициализация подключения через pymysql.connect(...)."""
@@ -50,10 +36,16 @@ class Database:
     def close(self):
         """Закрытие соединения."""
         if self.cursor:
-            self.cursor.close()
+            try:
+                self.cursor.close()
+            except Exception:
+                pass
             self.cursor = None
         if self.connection:
-            self.connection.close()
+            try:
+                self.connection.close()
+            except Exception:
+                pass
             self.connection = None
 
     def get_user(self, username):
@@ -61,6 +53,7 @@ class Database:
         Метод получения данных.
         Возвращает запись из users или None.
         """
+        self.last_error = None
         try:
             self.connect()
             self.cursor.execute(
@@ -70,6 +63,7 @@ class Database:
             user = self.cursor.fetchone()
             return user  # dict или None
         except Exception as e:
+            self.last_error = str(e)
             print(f"[Database] Ошибка get_user: {e}")
             return None
         finally:
@@ -77,6 +71,7 @@ class Database:
 
     def create_user(self, username, password):
         """Дополнительный метод для регистрации (не требуется заданием)."""
+        self.last_error = None
         try:
             self.connect()
             self.cursor.execute(
@@ -84,17 +79,18 @@ class Database:
                 (username, password),
             )
             return True
-        except pymysql.err.IntegrityError:
-            # UNIQUE violation
+        except pymysql.err.IntegrityError as e:
+            self.last_error = "Пользователь уже существует"
+            print(f"[Database] IntegrityError: {e}")
             return False
         except Exception as e:
+            self.last_error = str(e)
             print(f"[Database] Ошибка create_user: {e}")
             return False
         finally:
             self.close()
 
 
-# ==================== Flask-приложение ====================
 app = Flask(__name__)
 app.secret_key = os.urandom(24)
 
@@ -129,6 +125,13 @@ def login():
             db = Database()
             user = db.get_user(username)
 
+            # Если была ошибка подключения/запроса — показываем её
+            if db.last_error:
+                return render_template(
+                    "login.html",
+                    message=f"Ошибка БД: {db.last_error}",
+                )
+
             if user is None:
                 return render_template(
                     "login.html",
@@ -160,7 +163,7 @@ def login():
             print(f"[login] Ошибка: {e}")
             return render_template(
                 "login.html",
-                message="Произошла ошибка при авторизации!",
+                message=f"Ошибка при авторизации: {e}",
             )
 
     # GET
@@ -189,15 +192,18 @@ def register():
 
         db = Database()
         ok = db.create_user(username, password)
+
         if ok:
             return render_template(
                 "register.html",
                 message="Регистрация успешна! Теперь можно войти.",
             )
         else:
+            # Показываем реальную ошибку
+            msg = db.last_error or "Пользователь уже существует или ошибка БД."
             return render_template(
                 "register.html",
-                message="Пользователь уже существует или ошибка БД.",
+                message=msg,
                 error=True,
             )
 
@@ -215,9 +221,41 @@ def logout():
     return response
 
 
-# ==================== SQL для создания схемы (выполнить один раз) ====================
+@app.route("/test_db")
+def test_db():
+    """Страница для проверки подключения к БД."""
+    db = Database()
+    try:
+        db.connect()
+        db.cursor.execute("SELECT DATABASE()")
+        current_db = db.cursor.fetchone()
+        db.cursor.execute("SHOW TABLES")
+        tables = db.cursor.fetchall()
+        db.cursor.execute("SELECT COUNT(*) as cnt FROM users")
+        count = db.cursor.fetchone()
+        db.close()
+
+        return f"""
+        <h2>✅ Подключение к MySQL успешно!</h2>
+        <p><b>Текущая БД:</b> {current_db}</p>
+        <p><b>Таблицы:</b> {tables}</p>
+        <p><b>Пользователей в users:</b> {count}</p>
+        <p><a href="/">На главную</a></p>
+        """
+    except Exception as e:
+        return f"""
+        <h2>❌ Ошибка подключения к MySQL</h2>
+        <pre style="color:red; background:#fee; padding:15px;">{e}</pre>
+        <h3>Что проверить:</h3>
+        <ol>
+            <li>Запущен ли MySQL? (в XAMPP/WAMP — кнопка Start)</li>
+            <li>Правильный ли пароль в <code>DB_CONFIG</code> в app.py?</li>
+            <li>Создана ли база <code>flask_auth</code>? Выполни schema.sql</li>
+        </ol>
+        <p><a href="/">На главную</a></p>
+        """
+
 """
--- Выполните в MySQL:
 
 CREATE DATABASE IF NOT EXISTS flask_auth;
 USE flask_auth;
@@ -234,8 +272,8 @@ VALUES ('Vladimir Putin', '123456789');
 
 
 if __name__ == "__main__":
-    # Для локального запуска раскомментируйте:
-    # from threading import Timer
-    # import webbrowser
-    # Timer(1.5, lambda: webbrowser.open("http://127.0.0.1:5000/")).start()
+    print("=" * 50)
+    print("Flask + MySQL auth")
+    print("Проверка БД: http://127.0.0.1:5000/test_db")
+    print("=" * 50)
     app.run(host="127.0.0.1", port=5000, debug=True)
