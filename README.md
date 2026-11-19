@@ -27,31 +27,12 @@
    - обрабатывает ошибки
    - при успехе ставит cookie `auth_token` и делает редирект
 
-## Быстрый старт
-
-```bash
-# 1. Установить зависимости
-pip install -r requirements.txt
-
-# 2. Создать БД (нужен запущенный MySQL)
-mysql -u root -p < schema.sql
-
-# 3. При необходимости поправить DB_CONFIG в app.py
-#    (host, user, password)
-
-# 4. Запустить
-python app.py
-```
-
-Откройте http://127.0.0.1:5000/
-
 - **Вход**: `Vladimir Putin` / `123456789`
-- Также есть простая регистрация (не входила в обязательные пункты задания).
 
 ## Структура
 
 ```
-artifacts/
+flask/
 ├── app.py              # основное приложение + класс Database
 ├── schema.sql          # SQL для создания БД и таблицы
 ├── requirements.txt
