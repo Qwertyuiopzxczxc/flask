@@ -13,5 +13,6 @@ flask/
 └── templates/
     ├── index.html
     ├── login.html
+    ├── profile.html
     └── register.html
 ```
