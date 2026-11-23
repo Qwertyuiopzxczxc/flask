@@ -8,7 +8,6 @@ flask/
 ├── main.py
 ├── database.py              
 ├── schema.sql          # SQL для создания БД и таблицы
-├── requirements.txt
 ├── README.md
 └── templates/
     ├── index.html
