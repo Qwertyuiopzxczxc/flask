@@ -4,7 +4,9 @@
 
 ```
 flask/
-├── app.py              # основное приложение + класс Database
+├── app.py
+├── main.py
+├── database.py              
 ├── schema.sql          # SQL для создания БД и таблицы
 ├── requirements.txt
 ├── README.md
