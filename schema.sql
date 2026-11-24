@@ -4,18 +4,12 @@ CREATE DATABASE IF NOT EXISTS academy
 
 USE academy;
 
-CREATE TABLE IF NOT EXISTS users (
-  id INT NOT NULL AUTO_INCREMENT,
-  email VARCHAR(254) NOT NULL,
-  password VARCHAR(255) NOT NULL,
-  PRIMARY KEY (id),
-  UNIQUE KEY email_UNIQUE (email)
-);
+DROP TABLE IF EXISTS users;
 
--- Необязательная таблица классов, используемая методами Database.
-CREATE TABLE IF NOT EXISTS classes (
+CREATE TABLE users (
   id INT NOT NULL AUTO_INCREMENT,
-  class_name VARCHAR(255) NOT NULL,
-  places INT NOT NULL,
-  PRIMARY KEY (id)
+  user_name VARCHAR(100) NOT NULL,
+  user_password VARCHAR(255) NOT NULL,
+  PRIMARY KEY (id),
+  UNIQUE KEY user_name_UNIQUE (user_name)
 );
