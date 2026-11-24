@@ -3,36 +3,32 @@ import pymysql.cursors
 
 
 class Database:
-    def __init__(self, host, user, password, database):
-        self.connection = pymysql.connect(
+    def __init__(self, host="localhost", user="root", password="admin", database="academy"):
+        self.conn = pymysql.connect(
             host=host,
             user=user,
             password=password,
             database=database,
-            charset='utf8mb4',
+            charset="utf8mb4",
             cursorclass=pymysql.cursors.DictCursor,
+            autocommit=False
         )
 
-    def insert_users(self, email, password):
-        sql = "INSERT INTO users (email, password) VALUES (%s, %s)"
-        with self.connection.cursor() as cursor:
-            cursor.execute(sql, (email, password))
-        self.connection.commit()
+    def create_user(self, name, password):
+        """Метод из урока: INSERT пользователя"""
+        with self.conn.cursor() as cur:
+            cur.execute(
+                "INSERT INTO users (user_name, user_password) VALUES (%s, %s)",
+                (name, password)
+            )
+        self.conn.commit()
+        return cur.lastrowid
 
-    def insert_classes(self, places1, places2):
-        sql = "INSERT INTO classes (class_name, places) VALUES (%s, %s)"
-        with self.connection.cursor() as cursor:
-            cursor.execute(sql, (places1, places2))
-        self.connection.commit()
-
-    def select_classes(self):
-        sql = "SELECT * FROM classes"
-        with self.connection.cursor() as cursor:
-            cursor.execute(sql)
-            return cursor.fetchall()
-
-    def select_users(self, email):
-        sql = "SELECT * FROM users WHERE email = %s"
-        with self.connection.cursor() as cursor:
-            cursor.execute(sql, (email,))
-            return cursor.fetchone()
+    def get_user(self, name):
+        """Нужен для проверки дубля имени"""
+        with self.conn.cursor() as cur:
+            cur.execute(
+                "SELECT * FROM users WHERE user_name = %s",
+                (name,)
+            )
+            return cur.fetchone()
